@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: tassu_postgres
+    environment:
+      POSTGRES_DB: tassu_db
+      POSTGRES_USER: tassu_user
+      POSTGRES_PASSWORD: tassu_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d/
+    networks:
+      - tassu_network
+
+  python-app:
+    build: .
+    container_name: tassu_python
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://tassu_user:tassu_password@postgres:5432/tassu_db
+      PYTHONUNBUFFERED: 1
+    networks:
+      - tassu_network
+
+volumes:
+  postgres_data:
+
+networks:
+  tassu_network:
+    driver: bridge
