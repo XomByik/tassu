@@ -1,191 +1,378 @@
-# Swiss Health Database (Tassu)# Technológie a systémy spracovania údajov
+# Tassu - Swiss Health Database# Tassu - Swiss Health Database
 
 
 
-PostgreSQL databáza pre analýzu WHO zdravotných indikátorov pre Švajčiarsko.PostgreSQL databáza pre analýzu civilizačných chorôb vo Švajčiarsku.
+PostgreSQL databáza pre analýzu WHO zdravotných indikátorov pre Švajčiarsko.PostgreSQL databáza pre analýzu WHO zdravotných indikátorov pre Švajčiarsko.
 
 
 
-## Štruktúra projektu## Štruktúra projektu
+## Štruktúra projektu
 
 
 
-- `docker-compose.yml` - Docker konfigurácia- `docker-compose.yml` - Docker konfigurácia
+```## Štruktúra projektu
 
-- `Dockerfile` - Python aplikácia  - `Dockerfile` - Python konfigurácia
+tassu/
 
-- `init/` - SQL skripty pre inicializáciu databázy- `init/` - SQL skripty pre inicializáciu databázy
+├── docker-compose.yml      # Docker konfigurácia```
 
-  - `01_create_tables.sql` - Schéma databázy- `app.py` - Python aplikácia
+├── Dockerfile              # Python aplikáciatassu/
 
-- `app.py` - Python aplikácia- `requirements.txt` - Python závislosti
+├── requirements.txt        # Python závislosti├── docker-compose.yml      # Docker konfigurácia
 
-- `import_data.py` - Import skript pre WHO dáta
+├── import_data.py          # Import skript pre WHO dáta├── Dockerfile              # Python aplikácia
 
-- `requirements.txt` - Python závislosti## Inštalácia a spustenie
+├── data_csv/               # WHO CSV súbory (6 datasetov)├── requirements.txt        # Python závislosti
+
+│   ├── health_indicators_che.csv├── import_data.py          # Import skript pre WHO dáta
+
+│   ├── air_pollution_indicators_che.csv├── data_csv/               # WHO CSV súbory (6 datasetov)
+
+│   ├── environment_and_health_indicators_che.csv│   ├── health_indicators_che.csv
+
+│   ├── global_information_system_on_alcohol_and_health_indicators_che.csv│   ├── air_pollution_indicators_che.csv
+
+│   ├── health_financing_indicators_che.csv│   ├── environment_and_health_indicators_che.csv
+
+│   └── nutrition_indicators_che.csv│   ├── global_information_system_on_alcohol_and_health_indicators_che.csv
+
+└── init/│   ├── health_financing_indicators_che.csv
+
+    └── 01_create_tables.sql # Databázová schéma│   └── nutrition_indicators_che.csv
+
+```└── init/
+
+    └── 01_create_tables.sql # Databázová schéma
+
+## Rýchly štart```
 
 
 
-## Databázová štruktúra### 1. Stiahnutie projektu do WSL
+```bash
 
+# 1. Klonuj repozitár
 
-
-### Hlavné tabuľky:```bash
-
-- **kategorie_indikatorov** - Kategórie zdravotných indikátorov (choroby, rizikové faktory, environmentálne faktory...)# Klonuj repozitár
-
-- **zdravotne_indikatory** - WHO GHO indikátory (úmrtnosť, fajčenie, obezita, vakcinácia...)git clone https://github.com/XomByik/tassu.git
-
-- **demograficke_skupiny** - Vekové skupiny, pohlavie, dimension types
-
-- **merania_indikatorov** - Hlavná tabuľka s nameranými hodnotami# Prejdi do priečinka
+git clone https://github.com/XomByik/tassu.git## Databázová štruktúra### 1. Stiahnutie projektu do WSL
 
 cd tassu
 
-### Špecializované tabuľky:```
 
-- **environmentalne_faktory** - Znečistenie ovzdušia, kvalita vzduchu
 
-- **zdravotne_financovanie** - Výdavky na zdravotníctvo, financovanie### 2. Spustenie
+# 2. Spusti databázu a automatický import dát
 
-- **vyzivovacie_indikatory** - BMI, anémia, malnutrícia
-
-- **alkoholove_indikatory** - Spotreba alkoholu, úmrtnosť na alkohol```bash
-
-# Spusti všetky služby (PostgreSQL + Python)
-
-## Inštalácia a spusteniedocker-compose up -d
+docker-compose up -d### Hlavné tabuľky:```bash
 
 
 
-### 1. Stiahnutie projektu do WSL# Sleduj logy
+# 3. Sleduj progress importu- **kategorie_indikatorov** - Kategórie zdravotných indikátorov (choroby, rizikové faktory, environmentálne faktory...)# Klonuj repozitár
 
-docker-compose logs -f
+docker-compose logs -f python-app
 
-```bash```
+- **zdravotne_indikatory** - WHO GHO indikátory (úmrtnosť, fajčenie, obezita, vakcinácia...)git clone https://github.com/XomByik/tassu.git
 
-# Klonuj repozitár
+# 4. Pripoj sa na databázu
 
-git clone https://github.com/XomByik/tassu.git### 3. Zastavenie
-
-
-
-# Prejdi do priečinka```bash
-
-cd tassu# Zastav všetky kontajnery
-
-```docker-compose down
-
-
-
-### 2. Spustenie databázy# Zastav a vymaž volumes (databáza sa vymaže!)
-
-docker-compose down -v
-
-```bash```
-
-# Spusti PostgreSQL databázu
-
-docker-compose up -d postgres### 4. Odstránenie obrazov
-
-
-
-# Sleduj logy```bash
-
-docker-compose logs -f postgres# Odstráň všetky obrazy projektu
-
-```docker-compose down --rmi all
-
-
-
-### 3. Stiahnutie WHO dát# Alebo odstráň len lokálne zostavené obrazy
-
-docker-compose down --rmi local
-
-Stiahni WHO dáta pre Švajčiarsko z [WHO GHO Data Repository](https://www.who.int/data/gho):
-
-# Kompletné vyčistenie (kontajnery, obrazy, volumes, siete)
-
-Potrebné CSV súbory (umiestnite do root priečinka projektu):docker-compose down -v --rmi all --remove-orphans
-
-- `health_indicators_che.csv````
-
-- `air_pollution_indicators_che.csv`
-
-- `environment_and_health_indicators_che.csv`## Pripojenie na databázu
-
-- `global_information_system_on_alcohol_and_health_indicators_che.csv`
-
-- `health_financing_indicators_che.csv`### Cez pgAdmin4:
-
-- `nutrition_indicators_che.csv`- **Host:** `localhost`
-
-- **Port:** `5433`
-
-### 4. Import dát do databázy- **Database:** `tassu_db`
-
-- **User:** `tassu_user`
-
-```bash- **Password:** `tassu_password`
-
-# Nainštaluj Python závislosti
-
-pip install -r requirements.txt### Cez psql v Docker kontajneri:
-
-```bash
-
-# Spusti import skriptdocker exec -it tassu_postgres psql -U tassu_user -d tassu_db
-
-python import_data.py```
+docker exec -it tassu_postgres psql -U tassu_user -d tassu_db- **demograficke_skupiny** - Vekové skupiny, pohlavie, dimension types
 
 ```
 
-## Užitočné príkazy
+- **merania_indikatorov** - Hlavná tabuľka s nameranými hodnotami# Prejdi do priečinka
 
-Alebo cez Docker:
+**Hotovo!** Po `docker-compose up -d` sa automaticky:
+
+- Vytvorí PostgreSQL databázacd tassu
+
+- Vytvoria sa všetky tabuľky
+
+- Importujú sa WHO dáta zo všetkých CSV súborov### Špecializované tabuľky:```
+
+
+
+## Databázová štruktúra- **environmentalne_faktory** - Znečistenie ovzdušia, kvalita vzduchu
+
+
+
+### Hlavné tabuľky- **zdravotne_financovanie** - Výdavky na zdravotníctvo, financovanie### 2. Spustenie
+
+
+
+**kategorie_indikatorov**- **vyzivovacie_indikatory** - BMI, anémia, malnutrícia
+
+- Kategórie zdravotných indikátorov (úmrtnosť, choroby, rizikové faktory, environmentálne faktory...)
+
+- 15 kategórií (napr. "Úmrtnosť", "Alkohol", "Fajčenie a tabak", "Obezita")- **alkoholove_indikatory** - Spotreba alkoholu, úmrtnosť na alkohol```bash
+
+
+
+**zdravotne_indikatory**# Spusti všetky služby (PostgreSQL + Python)
+
+- WHO GHO indikátory s unikátnymi kódmi
+
+- 760 indikátorov (napr. "WHOSIS_000001" - Life expectancy at birth)## Inštalácia a spusteniedocker-compose up -d
+
+- Prepojenie: `kategoria_id` → `kategorie_indikatorov.id`
+
+
+
+**demograficke_skupiny**
+
+- Vekové skupiny, pohlavie, dimension types### 1. Stiahnutie projektu do WSL# Sleduj logy
+
+- 231 demografických skupín (napr. "0-17 rokov, muži", "65+ rokov, ženy")
+
+docker-compose logs -f
+
+**merania_indikatorov**
+
+- Hlavná tabuľka s nameranými hodnotami v čase```bash```
+
+- 10,976 záznamov meraní
+
+- Prepojenia:# Klonuj repozitár
+
+  - `indikator_id` → `zdravotne_indikatory.id`
+
+  - `demograficka_skupina_id` → `demograficke_skupiny.id`git clone https://github.com/XomByik/tassu.git### 3. Zastavenie
+
+- Obsahuje: hodnota, rok, dolná/horná hranica, krajina, región
+
+
+
+### Špecializované tabuľky
+
+# Prejdi do priečinka```bash
+
+**environmentalne_faktory**
+
+- Znečistenie ovzdušia, kvalita vzduchucd tassu# Zastav všetky kontajnery
+
+- 1,063 záznamov
+
+- Prepojenie: `indikator_id` → `zdravotne_indikatory.id````docker-compose down
+
+
+
+**zdravotne_financovanie**
+
+- Výdavky na zdravotníctvo, financovanie (OOP, GGHE-D, PVT-D, CHE)
+
+- 276 záznamov### 2. Spustenie databázy# Zastav a vymaž volumes (databáza sa vymaže!)
+
+- Prepojenie: `indikator_id` → `zdravotne_indikatory.id`
+
+docker-compose down -v
+
+**vyzivovacie_indikatory**
+
+- BMI, anémia, malnutrícia```bash```
+
+- 1,203 záznamov
+
+- Prepojenia:# Spusti PostgreSQL databázu
+
+  - `indikator_id` → `zdravotne_indikatory.id`
+
+  - `demograficka_skupina_id` → `demograficke_skupiny.id`docker-compose up -d postgres### 4. Odstránenie obrazov
+
+
+
+**alkoholove_indikatory**
+
+- Spotreba alkoholu, úmrtnosť na alkohol, typy alkoholu (víno, pivo, liehoviny)
+
+- 907 záznamov# Sleduj logy```bash
+
+- Prepojenia:
+
+  - `indikator_id` → `zdravotne_indikatory.id`docker-compose logs -f postgres# Odstráň všetky obrazy projektu
+
+  - `demograficka_skupina_id` → `demograficke_skupiny.id`
+
+```docker-compose down --rmi all
+
+### Vzťahy medzi tabuľkami
+
+
+
+```
+
+kategorie_indikatorov (1) ──→ (N) zdravotne_indikatory### 3. Stiahnutie WHO dát# Alebo odstráň len lokálne zostavené obrazy
+
+                                        ↓
+
+                                        │ (1)docker-compose down --rmi local
+
+                                        │
+
+                                        ├──→ (N) merania_indikatorov ←── (N) demograficke_skupinyStiahni WHO dáta pre Švajčiarsko z [WHO GHO Data Repository](https://www.who.int/data/gho):
+
+                                        │
+
+                                        ├──→ (N) environmentalne_faktory ←── (N) demograficke_skupiny# Kompletné vyčistenie (kontajnery, obrazy, volumes, siete)
+
+                                        │
+
+                                        ├──→ (N) zdravotne_financovaniePotrebné CSV súbory (umiestnite do root priečinka projektu):docker-compose down -v --rmi all --remove-orphans
+
+                                        │
+
+                                        ├──→ (N) vyzivovacie_indikatory ←── (N) demograficke_skupiny- `health_indicators_che.csv````
+
+                                        │
+
+                                        └──→ (N) alkoholove_indikatory ←── (N) demograficke_skupiny- `air_pollution_indicators_che.csv`
+
+```
+
+- `environment_and_health_indicators_che.csv`## Pripojenie na databázu
+
+## Pripojenie na databázu
+
+- `global_information_system_on_alcohol_and_health_indicators_che.csv`
+
+**PostgreSQL údaje:**
+
+- Host: `localhost`- `health_financing_indicators_che.csv`### Cez pgAdmin4:
+
+- Port: `5433`
+
+- Database: `tassu_db`- `nutrition_indicators_che.csv`- **Host:** `localhost`
+
+- User: `tassu_user`
+
+- Password: `tassu_password`- **Port:** `5433`
+
+
+
+**Pripojenie cez psql:**### 4. Import dát do databázy- **Database:** `tassu_db`
 
 ```bash
 
+docker exec -it tassu_postgres psql -U tassu_user -d tassu_db- **User:** `tassu_user`
+
+```
+
+```bash- **Password:** `tassu_password`
+
+**Pripojenie cez pgAdmin4:**
+
+- Použite vyššie uvedené údaje# Nainštaluj Python závislosti
+
+- URL: `postgresql://tassu_user:tassu_password@localhost:5433/tassu_db`
+
+pip install -r requirements.txt### Cez psql v Docker kontajneri:
+
+## Užitočné príkazy
+
+```bash
+
+```bash
+
+# Zobraz bežiace kontajnery# Spusti import skriptdocker exec -it tassu_postgres psql -U tassu_user -d tassu_db
+
+docker-compose ps
+
+python import_data.py```
+
+# Sleduj logy
+
+docker-compose logs -f```
+
+
+
+# Zastav všetky služby## Užitočné príkazy
+
+docker-compose down
+
+Alebo cez Docker:
+
+# Reštart databázy a reimport dát
+
+docker-compose down -v```bash
+
+docker-compose up -d
+
 ```bash# Zobraz bežiace kontajnery
 
-# Zostavy Python aplikáciudocker-compose ps
+# Backup databázy
 
-docker-compose build python-app
+docker exec tassu_postgres pg_dump -U tassu_user tassu_db > backup.sql# Zostavy Python aplikáciudocker-compose ps
 
-# Zobraz logy PostgreSQL
 
-# Spusti import v kontajneridocker-compose logs postgres
 
-docker-compose run --rm python-app python import_data.py
+# Restore databázydocker-compose build python-app
 
-```# Zobraz logy Python aplikácie
+cat backup.sql | docker exec -i tassu_postgres psql -U tassu_user -d tassu_db
+
+```# Zobraz logy PostgreSQL
+
+
+
+## Riešenie problémov# Spusti import v kontajneridocker-compose logs postgres
+
+
+
+**Databáza sa nespúšťa:**docker-compose run --rm python-app python import_data.py
+
+```bash
+
+docker-compose logs postgres```# Zobraz logy Python aplikácie
+
+docker-compose restart postgres
+
+```docker-compose logs python-app
+
+
+
+**Import zlyháva:**### 5. Zastavenie a vyčistenie
+
+```bash
+
+# Skontroluj logy# Reštartuj služby
 
 docker-compose logs python-app
 
-### 5. Zastavenie a vyčistenie
-
-# Reštartuj služby
-
 ```bashdocker-compose restart
 
-# Zastav všetky kontajnery
+# Ručne spusti import
+
+docker-compose run --rm python-app python import_data.py# Zastav všetky kontajnery
+
+```
 
 docker-compose down# Rebuild Python obrazu bez cache
 
-docker-compose build --no-cache python-app
+**Vyčistenie a nový štart:**
 
-# Zastav a vymaž volumes (databáza sa vymaže!)
+```bashdocker-compose build --no-cache python-app
+
+docker-compose down -v --rmi all
+
+docker-compose up -d# Zastav a vymaž volumes (databáza sa vymaže!)
+
+```
 
 docker-compose down -v# Spusti len PostgreSQL (bez Python)
 
+## WHO Dáta
+
 docker-compose up -d postgres
 
-# Kompletné vyčistenie```
+Dáta pochádzajú z WHO Global Health Observatory (GHO):
 
-docker-compose down -v --rmi all --remove-orphans
+- [WHO GHO Data Repository](https://www.who.int/data/gho/data/indicators)# Kompletné vyčistenie```
 
-```## Databázová štruktúra
+- CSV súbory pre Švajčiarsko (CHE)
 
+- Celkovo ~25,000 záznamov z rokov 2000-2024docker-compose down -v --rmi all --remove-orphans
+
+
+
+## Autor```## Databázová štruktúra
+
+
+
+XomByik - [GitHub](https://github.com/XomByik/tassu)
 
 
 ## Pripojenie na databázu- **kategorie_chorob** - Kategórie civilizačných chorôb

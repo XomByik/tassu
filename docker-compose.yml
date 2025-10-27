@@ -17,8 +17,8 @@ services:
   python-app:
     build: .
     container_name: tassu_python
-    ports:
-      - "8000:8000"
+    command: >
+      sh -c "sleep 10 && python import_data.py"
     depends_on:
       - postgres
     environment:
@@ -27,6 +27,8 @@ services:
       PYTHONUNBUFFERED: 1
     networks:
       - tassu_network
+    volumes:
+      - ./data_csv:/app/data_csv
 
 volumes:
   postgres_data:
