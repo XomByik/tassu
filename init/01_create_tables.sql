@@ -1,120 +1,176 @@
--- Kategórie chorôb
-CREATE TABLE kategorie_chorob (
+-- Kategórie zdravotných indikátorov
+CREATE TABLE kategorie_indikatorov (
     id SERIAL PRIMARY KEY,
-    nazov VARCHAR(100) NOT NULL UNIQUE,
-    kod VARCHAR(20) NOT NULL UNIQUE,
+    nazov VARCHAR(200) NOT NULL UNIQUE,
+    kod VARCHAR(50) NOT NULL UNIQUE,
+    typ VARCHAR(50) NOT NULL, -- 'choroba', 'rizikovy_faktor', 'environmentalny', 'financovanie', 'vyzivovacie'
     popis TEXT,
     vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Konkrétne choroby
-CREATE TABLE choroby (
+-- Zdravotné indikátory (choroby, rizikové faktory, atď.)
+CREATE TABLE zdravotne_indikatory (
     id SERIAL PRIMARY KEY,
-    nazov VARCHAR(200) NOT NULL,
-    icd_kod VARCHAR(20), -- ICD-10 kódy
+    gho_kod VARCHAR(100) NOT NULL UNIQUE, -- WHO GHO kód
+    nazov TEXT NOT NULL,
+    url TEXT,
     kategoria_id INTEGER NOT NULL,
+    jednotka VARCHAR(100), -- %, per 1000, deaths, cases, atď.
     popis TEXT,
     uroven_zavaznosti INTEGER CHECK (uroven_zavaznosti BETWEEN 1 AND 5),
     vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (kategoria_id) REFERENCES kategorie_chorob(id)
+    FOREIGN KEY (kategoria_id) REFERENCES kategorie_indikatorov(id)
 );
 
 -- Demografické skupiny
 CREATE TABLE demograficke_skupiny (
     id SERIAL PRIMARY KEY,
-    vekova_skupina VARCHAR(20) NOT NULL, -- '0-17', '18-34', '35-49', '50-64', '65+'
-    pohlavie VARCHAR(10) NOT NULL CHECK (pohlavie IN ('muz', 'zena', 'vsetky')),
+    vekova_skupina VARCHAR(50), -- '0-17', '18-34', '35-49', '50-64', '65+', 'vsetky'
+    pohlavie VARCHAR(20) CHECK (pohlavie IN ('muz', 'zena', 'vsetky')),
+    dimension_type VARCHAR(50), -- SEX, AGEGROUP, ALCOHOLTYPE, atď.
+    dimension_code VARCHAR(100),
+    dimension_name VARCHAR(200),
     vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(vekova_skupina, pohlavie)
+    UNIQUE(vekova_skupina, pohlavie, dimension_type, dimension_code)
 );
 
--- Životný štýl faktory
-CREATE TABLE zivotny_styl_faktory (
+-- Hlavná tabuľka - merania zdravotných indikátorov
+CREATE TABLE merania_indikatorov (
     id SERIAL PRIMARY KEY,
-    nazov_faktora VARCHAR(100) NOT NULL UNIQUE,
-    jednotka_merania VARCHAR(50) NOT NULL,
-    popis TEXT,
-    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    indikator_id INTEGER NOT NULL,
+    demograficka_skupina_id INTEGER,
+    rok INTEGER NOT NULL,
+    
+    -- Hodnoty merania
+    hodnota_cislo DECIMAL(20,6), -- numerická hodnota
+    hodnota_text VARCHAR(200), -- textová hodnota (napr. "Data not available")
+    dolna_hranica DECIMAL(20,6),
+    horna_hranica DECIMAL(20,6),
+    
+    -- Metadata
+    region_kod VARCHAR(20),
+    region_nazov VARCHAR(100),
+    krajina_kod VARCHAR(20),
+    krajina_nazov VARCHAR(100),
+    zdroj_url TEXT,
+    
+    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (indikator_id) REFERENCES zdravotne_indikatory(id),
+    FOREIGN KEY (demograficka_skupina_id) REFERENCES demograficke_skupiny(id),
+    
+    UNIQUE(indikator_id, demograficka_skupina_id, rok)
 );
 
--- Ekonomické indikátory (celoštátne)
-CREATE TABLE ekonomicke_indikatory (
-    id SERIAL PRIMARY KEY,
-    rok INTEGER NOT NULL UNIQUE,
-    hdp_na_obyvatela DECIMAL(12,2),
-    priemerny_plat DECIMAL(12,2),
-    miera_chudoby DECIMAL(5,2), -- percentá
-    miera_nezamestnanosti DECIMAL(5,2),
-    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Environmentálne faktory (celoštátne priemery)
+-- Environmentálne faktory (znečistenie ovzdušia, klíma)
 CREATE TABLE environmentalne_faktory (
     id SERIAL PRIMARY KEY,
+    indikator_id INTEGER NOT NULL,
     rok INTEGER NOT NULL,
-    mesiac INTEGER CHECK (mesiac BETWEEN 1 AND 12),
-    priemerna_teplota DECIMAL(5,2),
-    vlhkost DECIMAL(5,2),
-    index_kvality_vzduchu DECIMAL(6,2),
-    zrazky DECIMAL(8,2),
-    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(rok, mesiac)
-);
-
--- Hlavná tabuľka - výskyt chorôb (celoštátne)
-CREATE TABLE vyskyt_chorob (
-    id SERIAL PRIMARY KEY,
-    choroba_id INTEGER NOT NULL,
-    demograficka_skupina_id INTEGER NOT NULL,
-    rok INTEGER NOT NULL,
-    mesiac INTEGER CHECK (mesiac BETWEEN 1 AND 12),
-    
-    -- Štatistiky
-    celkovy_pocet_pripadov INTEGER NOT NULL DEFAULT 0,
-    nove_pripady INTEGER NOT NULL DEFAULT 0,
-    pocet_umrti INTEGER NOT NULL DEFAULT 0,
-    pocet_vyliecenych INTEGER DEFAULT 0,
-    pocet_hospitalizovanych INTEGER DEFAULT 0,
-    
-    -- Zdroj dát
-    zdroj_dat VARCHAR(200) NOT NULL, -- WHO, Swiss Federal Statistical Office, etc.
-    kvalita_dat INTEGER CHECK (kvalita_dat BETWEEN 1 AND 5),
-    
-    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    aktualizovane TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (choroba_id) REFERENCES choroby(id),
-    FOREIGN KEY (demograficka_skupina_id) REFERENCES demograficke_skupiny(id),
-    
-    UNIQUE(choroba_id, demograficka_skupina_id, rok, mesiac)
-);
-
--- Životný štýl dáta (celoštátne pre demografické skupiny)
-CREATE TABLE zivotny_styl_data (
-    id SERIAL PRIMARY KEY,
-    demograficka_skupina_id INTEGER NOT NULL,
-    faktor_id INTEGER NOT NULL,
-    rok INTEGER NOT NULL,
+    demograficka_skupina_id INTEGER,
     
     -- Hodnoty
-    priemerna_hodnota DECIMAL(12,4) NOT NULL,
-    minimalna_hodnota DECIMAL(12,4),
-    maximalna_hodnota DECIMAL(12,4),
-    velkost_vzorky INTEGER,
+    hodnota_cislo DECIMAL(20,6),
+    hodnota_text VARCHAR(200),
+    dolna_hranica DECIMAL(20,6),
+    horna_hranica DECIMAL(20,6),
     
-    zdroj_dat VARCHAR(200),
+    -- Špecifické pre environmentálne dáta
+    typ_znecistenia VARCHAR(100), -- ambient air, household air, atď.
+    merna_jednotka VARCHAR(100),
+    
+    zdroj_dat TEXT,
     vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
+    FOREIGN KEY (indikator_id) REFERENCES zdravotne_indikatory(id),
     FOREIGN KEY (demograficka_skupina_id) REFERENCES demograficke_skupiny(id),
-    FOREIGN KEY (faktor_id) REFERENCES zivotny_styl_faktory(id),
     
-    UNIQUE(demograficka_skupina_id, faktor_id, rok)
+    UNIQUE(indikator_id, rok, demograficka_skupina_id)
+);
+
+-- Zdravotné financovanie
+CREATE TABLE zdravotne_financovanie (
+    id SERIAL PRIMARY KEY,
+    indikator_id INTEGER NOT NULL,
+    rok INTEGER NOT NULL,
+    
+    -- Finančné hodnoty
+    hodnota_cislo DECIMAL(20,6),
+    hodnota_text VARCHAR(200),
+    
+    -- Špecifické pre financovanie
+    typ_vydavku VARCHAR(100), -- OOP, GGHE-D, PVT-D, CHE, atď.
+    merna_jednotka VARCHAR(100), -- %, USD, atď.
+    
+    region_kod VARCHAR(20),
+    region_nazov VARCHAR(100),
+    zdroj_dat TEXT,
+    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (indikator_id) REFERENCES zdravotne_indikatory(id),
+    
+    UNIQUE(indikator_id, rok)
+);
+
+-- Výživové indikátory
+CREATE TABLE vyzivovacie_indikatory (
+    id SERIAL PRIMARY KEY,
+    indikator_id INTEGER NOT NULL,
+    rok INTEGER NOT NULL,
+    demograficka_skupina_id INTEGER,
+    
+    -- Hodnoty
+    hodnota_cislo DECIMAL(20,6),
+    hodnota_text VARCHAR(200),
+    dolna_hranica DECIMAL(20,6),
+    horna_hranica DECIMAL(20,6),
+    
+    -- Špecifické pre výživu
+    typ_merania VARCHAR(100), -- BMI, anaemia, malnutrition, atď.
+    severity VARCHAR(50), -- mild, moderate, severe
+    
+    zdroj_dat TEXT,
+    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (indikator_id) REFERENCES zdravotne_indikatory(id),
+    FOREIGN KEY (demograficka_skupina_id) REFERENCES demograficke_skupiny(id),
+    
+    UNIQUE(indikator_id, rok, demograficka_skupina_id)
+);
+
+-- Alkoholové indikátory
+CREATE TABLE alkoholove_indikatory (
+    id SERIAL PRIMARY KEY,
+    indikator_id INTEGER NOT NULL,
+    rok INTEGER NOT NULL,
+    demograficka_skupina_id INTEGER,
+    
+    -- Hodnoty
+    hodnota_cislo DECIMAL(20,6),
+    hodnota_text VARCHAR(200),
+    dolna_hranica DECIMAL(20,6),
+    horna_hranica DECIMAL(20,6),
+    
+    -- Špecifické pre alkohol
+    typ_alkoholu VARCHAR(100), -- wine, beer, spirits, all types
+    typ_merania VARCHAR(200), -- consumption, prevalence, mortality, atď.
+    
+    zdroj_dat TEXT,
+    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (indikator_id) REFERENCES zdravotne_indikatory(id),
+    FOREIGN KEY (demograficka_skupina_id) REFERENCES demograficke_skupiny(id),
+    
+    UNIQUE(indikator_id, rok, demograficka_skupina_id)
 );
 
 -- Indexy pre optimalizáciu dotazov
-CREATE INDEX idx_vyskyt_chorob_choroba_rok ON vyskyt_chorob(choroba_id, rok);
-CREATE INDEX idx_vyskyt_chorob_demog_rok ON vyskyt_chorob(demograficka_skupina_id, rok);
-CREATE INDEX idx_vyskyt_chorob_rok_mesiac ON vyskyt_chorob(rok, mesiac);
-CREATE INDEX idx_zivotny_styl_data_demog_rok ON zivotny_styl_data(demograficka_skupina_id, rok);
-CREATE INDEX idx_environmentalne_faktory_rok_mesiac ON environmentalne_faktory(rok, mesiac);
-CREATE INDEX idx_ekonomicke_indikatory_rok ON ekonomicke_indikatory(rok);
+CREATE INDEX idx_merania_indikator_rok ON merania_indikatorov(indikator_id, rok);
+CREATE INDEX idx_merania_demog_rok ON merania_indikatorov(demograficka_skupina_id, rok);
+CREATE INDEX idx_merania_krajina_rok ON merania_indikatorov(krajina_kod, rok);
+CREATE INDEX idx_environmentalne_indikator_rok ON environmentalne_faktory(indikator_id, rok);
+CREATE INDEX idx_financovanie_indikator_rok ON zdravotne_financovanie(indikator_id, rok);
+CREATE INDEX idx_vyzivovacie_indikator_rok ON vyzivovacie_indikatory(indikator_id, rok);
+CREATE INDEX idx_alkoholove_indikator_rok ON alkoholove_indikatory(indikator_id, rok);
+CREATE INDEX idx_indikatory_kategoria ON zdravotne_indikatory(kategoria_id);
+CREATE INDEX idx_indikatory_gho_kod ON zdravotne_indikatory(gho_kod);
