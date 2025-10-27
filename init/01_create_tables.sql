@@ -61,6 +61,37 @@ CREATE TABLE environmentalne_faktory (
     UNIQUE(rok, mesiac)
 );
 
+-- Korelácie medzi výskytom chorôb a ekonomickými faktormi
+CREATE TABLE korelacia_choroby_ekonomika (
+    id SERIAL PRIMARY KEY,
+    choroba_id INTEGER NOT NULL,
+    ekonomicky_indikator_id INTEGER NOT NULL,
+    korelacny_koeficient DECIMAL(5,4) NOT NULL, -- -1.0 to 1.0
+    p_hodnota DECIMAL(10,8),
+    uroven_spolahliv DECIMAL(5,2),
+    poznamky TEXT,
+    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (choroba_id) REFERENCES choroby(id) ON DELETE CASCADE,
+    FOREIGN KEY (ekonomicky_indikator_id) REFERENCES ekonomicke_indikatory(id) ON DELETE CASCADE,
+    UNIQUE(choroba_id, ekonomicky_indikator_id)
+);
+
+-- Korelácie medzi výskytom chorôb a environmentálnymi faktormi
+CREATE TABLE korelacia_choroby_prostredie (
+    id SERIAL PRIMARY KEY,
+    choroba_id INTEGER NOT NULL,
+    rok INTEGER NOT NULL,
+    mesiac INTEGER CHECK (mesiac BETWEEN 1 AND 12),
+    korelacia_teplota DECIMAL(5,4),
+    korelacia_vlhkost DECIMAL(5,4),
+    korelacia_kvalita_vzduchu DECIMAL(5,4),
+    korelacia_zrazky DECIMAL(5,4),
+    poznamky TEXT,
+    vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (choroba_id) REFERENCES choroby(id) ON DELETE CASCADE,
+    UNIQUE(choroba_id, rok, mesiac)
+);
+
 -- Hlavná tabuľka - výskyt chorôb (celoštátne)
 CREATE TABLE vyskyt_chorob (
     id SERIAL PRIMARY KEY,
@@ -116,3 +147,5 @@ CREATE INDEX idx_vyskyt_chorob_choroba_rok ON vyskyt_chorob(choroba_id, rok);
 CREATE INDEX idx_vyskyt_chorob_demog_rok ON vyskyt_chorob(demograficka_skupina_id, rok);
 CREATE INDEX idx_zivotny_styl_data_demog_rok ON zivotny_styl_data(demograficka_skupina_id, rok);
 CREATE INDEX idx_environmentalne_faktory_rok ON environmentalne_faktory(rok);
+CREATE INDEX idx_korelacia_choroby_ekonomika_choroba ON korelacia_choroby_ekonomika(choroba_id);
+CREATE INDEX idx_korelacia_choroby_prostredie_choroba ON korelacia_choroby_prostredie(choroba_id, rok);
