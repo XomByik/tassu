@@ -19,7 +19,7 @@ docker-compose logs -f python-app
 **Hotovo!** Po spustení `docker-compose up -d` sa automaticky:
 - Vytvorí PostgreSQL databáza
 - Vytvoria sa všetky tabuľky
-- Importujú sa WHO dáta zo všetkých CSV súborov
+- Importuje sa **25 384 záznamov** z 6 WHO CSV súborov
 
 ---
 
@@ -67,8 +67,8 @@ tassu/
 
 **choroby** (562 chorôb) - Konkrétne ochorenia s WHO GHO kódmi
 
-**vyskyt_chorob** (8 934 meraní) - Výskyt chorôb v čase
-- Obsahuje `typ_merania`: mortality, incidence, prevalence, cases
+**vyskyt_chorob** (12 818 meraní) - Výskyt chorôb v čase
+- Obsahuje `typ_merania`: mortality (úmrtnosť), incidence (výskyt), prevalence (rozšírenosť), cases (počet prípadov)
 - Jeden typ choroby môže mať viacero typov meraní
 
 ### 3. Životný štýl
@@ -76,17 +76,18 @@ tassu/
 **zivotny_styl** → **zivotny_styl_data**
 
 **zivotny_styl** (208 faktorov):
-- Alkohol (65 indikátorov)
-- Fajčenie (116 indikátorov)
-- Vakcinácia (10 indikátorov) - preventívne opatrenia
-- Výživa (17 indikátorov) - BMI, obezita, anémia
+- Alkohol (65 faktorov) - napr. "Heavy episodic drinking", "Alcohol abstainers", "Average daily intake"
+- Fajčenie (116 faktorov) - napr. prevalencia, cena cigariet, legislatíva
+- Vakcinácia (10 faktorov) - napr. pokrytie MCV1, HepB3, HPV
+- Výživa (17 faktorov) - napr. BMI, obezita, anémia, malnutrícia
 
 **zivotny_styl_data** (7 005 meraní)
 
 ### 4. Environmentálne faktory
 
-**environmentalne_faktory** (1 063 meraní)
+**environmentalne_faktory** (5 285 meraní)
 - Znečistenie ovzdušia (PM2.5, PM10, ambient/household air pollution)
+- Kvalita vzduchu
 
 ### 5. Financovanie
 
@@ -235,7 +236,13 @@ Dáta pochádzajú z WHO Global Health Observatory (GHO):
 - [WHO Global Health Observatory](https://www.who.int/data/gho)
 - [GHO Data Repository](https://www.who.int/data/gho/data/indicators)
 
-CSV súbory pre Švajčiarsko (CHE) obsahujú celkovo ~25 000 záznamov z rokov 2000-2024.
+CSV súbory pre Švajčiarsko (CHE) obsahujú celkovo **25 384 záznamov** z rokov 2000-2024:
+- health_indicators_che.csv: 17 011 záznamov
+- air_pollution_indicators_che.csv: 2 517 záznamov
+- environment_and_health_indicators_che.csv: 2 768 záznamov
+- global_information_system_on_alcohol_and_health_indicators_che.csv: 919 záznamov
+- health_financing_indicators_che.csv: 276 záznamov
+- nutrition_indicators_che.csv: 1 893 záznamov
 
 ---
 

@@ -68,9 +68,9 @@ CREATE TABLE vyskyt_chorob (
     vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (choroba_id) REFERENCES choroby(id),
-    FOREIGN KEY (demografie_id) REFERENCES demograficke_skupiny(id),
+    FOREIGN KEY (demografie_id) REFERENCES demograficke_skupiny(id)
 
-    UNIQUE(choroba_id, demografie_id, rok, typ_merania)
+    -- Poznámka: Bez UNIQUE constraint, lebo typ_merania môže byť NULL a spôsobovať duplicity
 );
 
 -- ========================================
@@ -143,9 +143,9 @@ CREATE TABLE environmentalne_faktory (
     zdroj_url TEXT,
     vytvorene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (demografie_id) REFERENCES demograficke_skupiny(id),
+    FOREIGN KEY (demografie_id) REFERENCES demograficke_skupiny(id)
 
-    UNIQUE(kod, rok, demografie_id)
+    -- Poznámka: Bez UNIQUE constraint, lebo jeden kod/rok/demografia môže mať viacero meraní
 );
 
 -- ========================================

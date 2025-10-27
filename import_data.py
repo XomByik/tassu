@@ -330,16 +330,20 @@ def import_to_db(all_data, db_url):
                 logging.info(f"  Spracovávam {csv_type}...")
                 type_count = 0
                 error_count = 0
+                skipped_count = 0
+                category_counts = {'choroba': 0, 'zivotny_styl': 0, 'environment': 0, 'financovanie': 0}
 
                 for _, row in df.iterrows():
                     gho_kod = row.get('gho_code', '')
                     rok = row.get('year_display')
 
                     if pd.isna(gho_kod) or pd.isna(rok):
+                        skipped_count += 1
                         continue
 
                     gho_nazov = row.get('gho_display', '')
                     typ_tabulky, _, _, _, typ_merania = categorize_indicator(gho_nazov, gho_kod, csv_type)
+                    category_counts[typ_tabulky] = category_counts.get(typ_tabulky, 0) + 1
 
                     # Demografická skupina
                     demo_info = parse_demographic_info(row)
@@ -367,7 +371,6 @@ def import_to_db(all_data, db_url):
                                  krajina_kod, krajina_nazov, zdroj_url)
                                 VALUES (:choroba_id, :demo_id, :rok, :h_cislo, :h_text, :dolna, :horna,
                                         :typ_mer, :reg_kod, :reg_nazov, :kraj_kod, :kraj_nazov, :url)
-                                ON CONFLICT (choroba_id, demografie_id, rok, typ_merania) DO NOTHING
                             """), {
                                 'choroba_id': choroby_map[gho_kod],
                                 'demo_id': demo_id,
@@ -429,7 +432,6 @@ def import_to_db(all_data, db_url):
                                  dolna_hranica, horna_hranica, typ, typ_znecistenia, zdroj_url)
                                 VALUES (:nazov, :kod, :rok, :demo_id, :h_cislo, :h_text, :dolna, :horna,
                                         :typ, :typ_znec, :url)
-                                ON CONFLICT (kod, rok, demografie_id) DO NOTHING
                             """), {
                                 'nazov': gho_nazov[:500],
                                 'kod': gho_kod,
@@ -480,10 +482,17 @@ def import_to_db(all_data, db_url):
                         conn.rollback()  # Rollback na pokračovanie transakcie
                         continue
 
+                # Detailné štatistiky
+                logging.info(f"    ✓ Importovaných: {type_count} záznamov")
+                if skipped_count > 0:
+                    logging.info(f"    ! Preskočených: {skipped_count} (chýbajúci gho_code alebo rok)")
                 if error_count > 0:
-                    logging.info(f"    ✓ {type_count} záznamov ({error_count} chýb)")
-                else:
-                    logging.info(f"    ✓ {type_count} záznamov")
+                    logging.info(f"    ! Chýb pri importe: {error_count}")
+
+                # Kategorizácia
+                if category_counts:
+                    cat_summary = ", ".join([f"{k}: {v}" for k, v in category_counts.items() if v > 0])
+                    logging.info(f"    → Kategorizácia: {cat_summary}")
 
             conn.commit()
 
@@ -491,6 +500,15 @@ def import_to_db(all_data, db_url):
             logging.info(f"\n{'='*60}")
             logging.info("IMPORT DOKONČENÝ - ŠTATISTIKY:")
             logging.info(f"{'='*60}")
+
+            # Celkové počty
+            total_imported = sum(counts.values())
+            total_csv_rows = sum([len(df) for df in all_data.values() if df is not None])
+            logging.info(f"  • Celkový počet riadkov v CSV: {total_csv_rows}")
+            logging.info(f"  • Celkový počet importovaných: {total_imported}")
+            if total_imported < total_csv_rows:
+                logging.info(f"  • Rozdiel: {total_csv_rows - total_imported} záznamov sa neimportovalo")
+            logging.info("")
 
             stats = conn.execute(text("""
                 SELECT
