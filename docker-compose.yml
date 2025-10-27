@@ -23,6 +23,7 @@ services:
       - postgres
     environment:
       DATABASE_URL: postgresql://tassu_user:tassu_password@postgres:5432/tassu_db
+      DB_HOST: postgres
       PYTHONUNBUFFERED: 1
     networks:
       - tassu_network

@@ -10,20 +10,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # --- Konfigurácia pripojenia k databáze ---
 DB_USER = 'tassu_user'
 DB_PASSWORD = 'tassu_password'
-DB_HOST = 'localhost'
-DB_PORT = '5433'
+DB_HOST = os.getenv('DB_HOST', 'localhost')  # Použije 'postgres' v Dockeri, 'localhost' lokálne
+DB_PORT = '5432'  # Interný port v Dockeri je 5432
 DB_NAME = 'tassu_db'
 
 DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # --- Zoznam CSV súborov na import ---
+CSV_DIR = 'data_csv'  # Priečinok s CSV súbormi
 CSV_FILES = {
-    'health': 'health_indicators_che.csv',
-    'air_pollution': 'air_pollution_indicators_che.csv',
-    'environment': 'environment_and_health_indicators_che.csv',
-    'alcohol': 'global_information_system_on_alcohol_and_health_indicators_che.csv',
-    'financing': 'health_financing_indicators_che.csv',
-    'nutrition': 'nutrition_indicators_che.csv'
+    'health': os.path.join(CSV_DIR, 'health_indicators_che.csv'),
+    'air_pollution': os.path.join(CSV_DIR, 'air_pollution_indicators_che.csv'),
+    'environment': os.path.join(CSV_DIR, 'environment_and_health_indicators_che.csv'),
+    'alcohol': os.path.join(CSV_DIR, 'global_information_system_on_alcohol_and_health_indicators_che.csv'),
+    'financing': os.path.join(CSV_DIR, 'health_financing_indicators_che.csv'),
+    'nutrition': os.path.join(CSV_DIR, 'nutrition_indicators_che.csv')
 }
 
 
