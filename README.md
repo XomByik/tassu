@@ -1,6 +1,6 @@
 # Tassu - Swiss Health Database
 
-PostgreSQL databáza pre analýzu WHO zdravotných indikátorov pre Švajčiarsko.
+PostgreSQL databáza pre analýzu WHO zdravotných dát pre Švajčiarsko.
 
 ## Rýchly štart
 
@@ -14,12 +14,9 @@ docker-compose up -d
 
 # 3. Sleduj progress importu
 docker-compose logs -f python-app
-
-# 4. Pripoj sa na databázu
-docker exec -it tassu_postgres psql -U tassu_user -d tassu_db
 ```
 
-**Hotovo!** Po `docker-compose up -d` sa automaticky:
+**Hotovo!** Po spustení `docker-compose up -d` sa automaticky:
 - Vytvorí PostgreSQL databáza
 - Vytvoria sa všetky tabuľky
 - Importujú sa WHO dáta zo všetkých CSV súborov
@@ -49,35 +46,63 @@ tassu/
 
 ## Databázová štruktúra
 
-### Hlavné tabuľky
+### 1. Demografia
 
-| Tabuľka | Popis | Počet záznamov |
-|---------|-------|----------------|
-| **kategorie_indikatorov** | Kategórie zdravotných indikátorov | 15 |
-| **zdravotne_indikatory** | WHO GHO indikátory (úmrtnosť, fajčenie, obezita...) | 760 |
-| **demograficke_skupiny** | Vekové skupiny, pohlavie, dimension types | 231 |
-| **merania_indikatorov** | Hlavná tabuľka s nameranými hodnotami | 10 976 |
+**demograficke_skupiny** (231 záznamov)
+- Vekové skupiny: 0-17, 18-34, 35-49, 50-64, 65+, všetky
+- Pohlavie: muž, žena, všetky
 
-### Špecializované tabuľky
+### 2. Choroby
 
-| Tabuľka | Popis | Počet záznamov |
-|---------|-------|----------------|
-| **environmentalne_faktory** | Znečistenie ovzdušia, kvalita vzduchu | 1 063 |
-| **zdravotne_financovanie** | Výdavky na zdravotníctvo (OOP, GGHE-D, CHE) | 276 |
-| **vyzivovacie_indikatory** | BMI, anémia, malnutrícia | 1 203 |
-| **alkoholove_indikatory** | Spotreba alkoholu, úmrtnosť | 907 |
+**kategorie_chorob** → **choroby** → **vyskyt_chorob**
 
-### Vzťahy medzi tabuľkami
+**kategorie_chorob** (7 kategórií):
+- Infekčné choroby (HIV, hepatitída, tuberkulóza...)
+- Metabolické ochorenia (cukrovka...)
+- Neuropsychiatrické poruchy (depresia, alzheimer...)
+- Rakoviny
+- Respiračné ochorenia (astma, COPD...)
+- Zdravie matiek a detí (novorodenecká úmrtnosť...)
+- Ostatné ochorenia
+
+**choroby** (562 chorôb) - Konkrétne ochorenia s WHO GHO kódmi
+
+**vyskyt_chorob** (8 934 meraní) - Výskyt chorôb v čase
+- Obsahuje `typ_merania`: mortality, incidence, prevalence, cases
+- Jeden typ choroby môže mať viacero typov meraní
+
+### 3. Životný štýl
+
+**zivotny_styl** → **zivotny_styl_data**
+
+**zivotny_styl** (208 faktorov):
+- Alkohol (65 indikátorov)
+- Fajčenie (116 indikátorov)
+- Vakcinácia (10 indikátorov) - preventívne opatrenia
+- Výživa (17 indikátorov) - BMI, obezita, anémia
+
+**zivotny_styl_data** (7 005 meraní)
+
+### 4. Environmentálne faktory
+
+**environmentalne_faktory** (1 063 meraní)
+- Znečistenie ovzdušia (PM2.5, PM10, ambient/household air pollution)
+
+### 5. Financovanie
+
+**financovanie_zdravotnictva** (276 meraní)
+- Výdavky na zdravotníctvo (OOP - out-of-pocket, GGHE-D - government, PVT-D - private, CHE - current health expenditure)
+
+---
+
+## Vzťahy medzi tabuľkami
 
 ```
-kategorie_indikatorov (1) ──→ (N) zdravotne_indikatory
-                                        ↓ (1)
-                                        │
-                                        ├──→ (N) merania_indikatorov ←── (N) demograficke_skupiny
-                                        ├──→ (N) environmentalne_faktory ←── (N) demograficke_skupiny
-                                        ├──→ (N) zdravotne_financovanie
-                                        ├──→ (N) vyzivovacie_indikatory ←── (N) demograficke_skupiny
-                                        └──→ (N) alkoholove_indikatory ←── (N) demograficke_skupiny
+kategorie_chorob (1) ──→ (N) choroby (1) ──→ (N) vyskyt_chorob ←── (N) demograficke_skupiny
+                                                                            ↑
+zivotny_styl (1) ────────────────────→ (N) zivotny_styl_data ──────────────┤
+                                                                            │
+environmentalne_faktory ────────────────────────────────────────────────────┤
 ```
 
 ---
@@ -91,7 +116,6 @@ kategorie_indikatorov (1) ──→ (N) zdravotne_indikatory
 - **Database:** `tassu_db`
 - **User:** `tassu_user`
 - **Password:** `tassu_password`
-- **URL:** `postgresql://tassu_user:tassu_password@localhost:5433/tassu_db`
 
 ### Cez psql v Docker kontajneri
 
@@ -101,115 +125,47 @@ docker exec -it tassu_postgres psql -U tassu_user -d tassu_db
 
 ---
 
-## Príklady SQL dotazov
-
-### 1. Základné štatistiky
-
-```sql
-SELECT
-    (SELECT COUNT(*) FROM kategorie_indikatorov) as kategorie,
-    (SELECT COUNT(*) FROM zdravotne_indikatory) as indikatory,
-    (SELECT COUNT(*) FROM demograficke_skupiny) as demografie,
-    (SELECT COUNT(*) FROM merania_indikatorov) as merania,
-    (SELECT COUNT(*) FROM environmentalne_faktory) as environmentalne,
-    (SELECT COUNT(*) FROM zdravotne_financovanie) as financovanie,
-    (SELECT COUNT(*) FROM vyzivovacie_indikatory) as vyzivovacie,
-    (SELECT COUNT(*) FROM alkoholove_indikatory) as alkoholove;
-```
-
-### 2. Top kategórie podľa počtu meraní
-
-```sql
-SELECT
-    k.nazov,
-    k.typ,
-    COUNT(m.id) as pocet_merani
-FROM kategorie_indikatorov k
-JOIN zdravotne_indikatory i ON i.kategoria_id = k.id
-LEFT JOIN merania_indikatorov m ON m.indikator_id = i.id
-GROUP BY k.id, k.nazov, k.typ
-ORDER BY pocet_merani DESC
-LIMIT 10;
-```
-
-### 3. Časový vývoj úmrtnosti
-
-```sql
-SELECT
-    zi.nazov,
-    mi.rok,
-    mi.hodnota_cislo,
-    ds.vekova_skupina,
-    ds.pohlavie
-FROM merania_indikatorov mi
-JOIN zdravotne_indikatory zi ON mi.indikator_id = zi.id
-JOIN demograficke_skupiny ds ON mi.demograficka_skupina_id = ds.id
-JOIN kategorie_indikatorov k ON zi.kategoria_id = k.id
-WHERE k.nazov LIKE '%mortali%'
-ORDER BY mi.rok DESC, zi.nazov
-LIMIT 20;
-```
-
-### 4. Environmentálne faktory
-
-```sql
-SELECT
-    zi.nazov as indikator,
-    ef.rok,
-    ef.hodnota_cislo,
-    ef.typ_znecistenia
-FROM environmentalne_faktory ef
-JOIN zdravotne_indikatory zi ON ef.indikator_id = zi.id
-WHERE ef.rok >= 2015
-ORDER BY ef.rok DESC
-LIMIT 20;
-```
-
-### 5. Analýza výživy a obezity
-
-```sql
-SELECT
-    zi.nazov,
-    vi.rok,
-    vi.hodnota_cislo,
-    vi.typ_merania,
-    ds.vekova_skupina,
-    ds.pohlavie
-FROM vyzivovacie_indikatory vi
-JOIN zdravotne_indikatory zi ON vi.indikator_id = zi.id
-JOIN demograficke_skupiny ds ON vi.demograficka_skupina_id = ds.id
-WHERE zi.nazov LIKE '%BMI%' OR zi.nazov LIKE '%obesity%'
-ORDER BY vi.rok DESC, ds.vekova_skupina;
-```
-
----
-
-## Užitočné príkazy
+## Docker príkazy
 
 ### Základné operácie
 
 ```bash
-# Zobraz bežiace kontajnery
-docker-compose ps
+# Spusti všetky služby
+docker-compose up -d
 
 # Sleduj logy
 docker-compose logs -f
 
-# Sleduj logy konkrétnej služby
+# Sleduj logy PostgreSQL
 docker-compose logs -f postgres
-docker-compose logs -f python-app
 
-# Reštartuj služby
-docker-compose restart
+# Sleduj logy Python importu
+docker-compose logs -f python-app
 
 # Zastav všetky kontajnery
 docker-compose down
 
-# Zastav a vymaž volumes (databáza sa vymaže!)
-docker-compose down -v
+# Reštartuj služby
+docker-compose restart
 ```
 
-### Správa databázy
+### Vyčistenie a rebuild
+
+```bash
+# Zastav a vymaž databázu
+docker-compose down -v
+
+# Kompletné vyčistenie (kontajnery, obrazy, volumes)
+docker-compose down -v --rmi all --remove-orphans
+
+# Rebuild Python obrazu bez cache
+docker-compose build --no-cache python-app
+
+# Reštart databázy a reimport dát
+docker-compose down -v && docker-compose up -d
+```
+
+### Backup a restore
 
 ```bash
 # Backup databázy
@@ -219,55 +175,24 @@ docker exec tassu_postgres pg_dump -U tassu_user tassu_db > backup_$(date +%Y%m%
 cat backup_20241027.sql | docker exec -i tassu_postgres psql -U tassu_user -d tassu_db
 ```
 
-### Rebuild a vyčistenie
-
-```bash
-# Rebuild Python obrazu bez cache
-docker-compose build --no-cache python-app
-
-# Spusti len PostgreSQL (bez Python)
-docker-compose up -d postgres
-
-# Kompletné vyčistenie (kontajnery, obrazy, volumes)
-docker-compose down -v --rmi all --remove-orphans
-
-# Reštart databázy a reimport dát
-docker-compose down -v && docker-compose up -d
-```
-
-### Manuálny import
-
-```bash
-# Nainštaluj Python závislosti
-pip install -r requirements.txt
-
-# Spusti import lokálne
-python import_data.py
-
-# Alebo cez Docker
-docker-compose run --rm python-app python import_data.py
-```
-
 ---
 
-## Import skript (import_data.py)
+## Import skript
 
-Import skript automaticky:
-- Kategorizuje WHO indikátory podľa typu (choroby, rizikové faktory, environmentálne...)
+Import skript (`import_data.py`) automaticky:
+- Načíta všetky WHO CSV súbory
+- Kategorizuje zdravotné indikátory do správnych tabuliek
 - Parsuje demografické informácie (vek, pohlavie)
-- Importuje dáta do správnych tabuliek podľa typu
+- Importuje dáta do databázy
 - Vytvára prepojenia medzi tabuľkami
 - Loguje progress a štatistiky
 
-### Konfigurácia
-
-```python
-DB_USER = 'tassu_user'
-DB_PASSWORD = 'tassu_password'
-DB_HOST = 'localhost'
-DB_PORT = '5433'
-DB_NAME = 'tassu_db'
-```
+**Kategorizácia dát:**
+- **Choroby:** Infekčné choroby, metabolické ochorenia, neuropsychiatrické poruchy, rakoviny, respiračné ochorenia, zdravie matiek a detí
+  - Každá choroba môže mať viacero typov meraní: mortality (úmrtnosť), incidence (výskyt), prevalence (rozšírenosť), cases (počet prípadov)
+- **Životný štýl:** Alkohol, fajčenie, vakcinácia (preventívne opatrenia), výživa (BMI, anémia, obezita)
+- **Environment:** Znečistenie ovzdušia, kvalita vzduchu
+- **Financovanie:** Výdavky na zdravotníctvo
 
 ---
 
@@ -283,28 +208,7 @@ docker-compose logs postgres
 docker-compose restart postgres
 ```
 
-### Import zlyhá s chybou pripojenia
-
-```bash
-# Skontroluj či PostgreSQL beží
-docker-compose ps
-
-# Otestuj pripojenie
-docker exec -it tassu_postgres psql -U tassu_user -d tassu_db -c "SELECT 1;"
-```
-
-### Python chyby pri importe
-
-```bash
-# Nainštaluj závislosti
-pip install -r requirements.txt
-
-# Alebo použij Docker
-docker-compose build python-app
-docker-compose run --rm python-app python import_data.py
-```
-
-### Databáza neobsahuje dáta
+### Import zlyhá
 
 ```bash
 # Sleduj import logy
@@ -314,6 +218,15 @@ docker-compose logs -f python-app
 docker-compose run --rm python-app python import_data.py
 ```
 
+### Databáza neobsahuje dáta
+
+```bash
+# Reštart databázy a reimport
+docker-compose down -v
+docker-compose up -d
+docker-compose logs -f python-app
+```
+
 ---
 
 ## WHO Dáta - zdroje
@@ -321,9 +234,16 @@ docker-compose run --rm python-app python import_data.py
 Dáta pochádzajú z WHO Global Health Observatory (GHO):
 - [WHO Global Health Observatory](https://www.who.int/data/gho)
 - [GHO Data Repository](https://www.who.int/data/gho/data/indicators)
-- [Athena API](https://www.who.int/data/gho/info/athena-api)
 
 CSV súbory pre Švajčiarsko (CHE) obsahujú celkovo ~25 000 záznamov z rokov 2000-2024.
+
+---
+
+## Technológie
+
+- **Databáza:** PostgreSQL 15
+- **Import:** Python 3.11, pandas, SQLAlchemy
+- **Orchestrácia:** Docker, Docker Compose
 
 ---
 
