@@ -17,18 +17,15 @@ services:
   python-app:
     build: .
     container_name: tassu_python
-    command: >
-      sh -c "sleep 10 && python import_data.py"
+    command: sh -c "sleep 10 && python import.py"
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgresql://tassu_user:tassu_password@postgres:5432/tassu_db
       DB_HOST: postgres
-      PYTHONUNBUFFERED: 1
-    networks:
-      - tassu_network
     volumes:
       - ./data_csv:/app/data_csv
+    networks:
+      - tassu_network
 
 volumes:
   postgres_data:

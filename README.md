@@ -1,263 +1,95 @@
-# Tassu - Swiss Health Database
+# GBD 2023 - Švajčiarsko
 
-PostgreSQL databáza pre analýzu WHO zdravotných dát pre Švajčiarsko.
+Dynamická zdravotná databáza s automatickým vytváraním tabuliek.
 
-## Rýchly štart
+## Spustenie
 
 ```bash
-# 1. Klonuj repozitár
-git clone https://github.com/XomByik/tassu.git
-cd tassu
-
-# 2. Spusti databázu a automatický import dát
-docker-compose up -d
-
-# 3. Sleduj progress importu
-docker-compose logs -f python-app
+docker-compose up -d      # Spustiť
+docker-compose down       # Zastaviť
+docker-compose down -v    # Reset databázy
 ```
 
-**Hotovo!** Po spustení `docker-compose up -d` sa automaticky:
-- Vytvorí PostgreSQL databáza
-- Vytvoria sa všetky tabuľky
-- Importuje sa **25 384 záznamov** z 6 WHO CSV súborov
+Import prebehne automaticky (~30s).
 
----
+## Štruktúra
 
-## Štruktúra projektu
+3 domény, 143 dynamicky vytvorených tabuliek:
 
-```
-tassu/
-├── docker-compose.yml      # Docker konfigurácia
-├── Dockerfile              # Python aplikácia
-├── requirements.txt        # Python závislosti
-├── import_data.py          # Import skript pre WHO dáta
-├── data_csv/               # WHO CSV súbory (6 datasetov)
-│   ├── health_indicators_che.csv
-│   ├── air_pollution_indicators_che.csv
-│   ├── environment_and_health_indicators_che.csv
-│   ├── global_information_system_on_alcohol_and_health_indicators_che.csv
-│   ├── health_financing_indicators_che.csv
-│   └── nutrition_indicators_che.csv
-└── init/
-    └── 01_create_tables.sql # Databázová schéma
-```
+1. **CHOROBY (dm_*)** - 126 tabuliek  
+   Konkrétne choroby: diabetes, tuberkulóza, rakovina
 
----
+2. **PROSTREDIE (em_*)** - 8 tabuliek  
+   Riziká: znečistenie ovzdušia, nečistá voda
 
-## Databázová štruktúra
+3. **ŽIVOTNÝ ŠTÝL (lm_*)** - 9 tabuliek  
+   Riziká: alkohol, fajčenie, vysoké BMI
 
-### 1. Demografia
-
-**demograficke_skupiny** (231 záznamov)
-- Vekové skupiny: 0-17, 18-34, 35-49, 50-64, 65+, všetky
-- Pohlavie: muž, žena, všetky
-
-### 2. Choroby
-
-**kategorie_chorob** → **choroby** → **vyskyt_chorob**
-
-**kategorie_chorob** (7 kategórií):
-- Infekčné choroby (HIV, hepatitída, tuberkulóza...)
-- Metabolické ochorenia (cukrovka...)
-- Neuropsychiatrické poruchy (depresia, alzheimer...)
-- Rakoviny
-- Respiračné ochorenia (astma, COPD...)
-- Zdravie matiek a detí (novorodenecká úmrtnosť...)
-- Ostatné ochorenia
-
-**choroby** (562 chorôb) - Konkrétne ochorenia s WHO GHO kódmi
-
-**vyskyt_chorob** (12 818 meraní) - Výskyt chorôb v čase
-- Obsahuje `typ_merania`: mortality (úmrtnosť), incidence (výskyt), prevalence (rozšírenosť), cases (počet prípadov)
-- Jeden typ choroby môže mať viacero typov meraní
-
-### 3. Životný štýl
-
-**zivotny_styl** → **zivotny_styl_data**
-
-**zivotny_styl** (208 faktorov):
-- Alkohol (65 faktorov) - napr. "Heavy episodic drinking", "Alcohol abstainers", "Average daily intake"
-- Fajčenie (116 faktorov) - napr. prevalencia, cena cigariet, legislatíva
-- Vakcinácia (10 faktorov) - napr. pokrytie MCV1, HepB3, HPV
-- Výživa (17 faktorov) - napr. BMI, obezita, anémia, malnutrícia
-
-**zivotny_styl_data** (7 005 meraní)
-
-### 4. Environmentálne faktory
-
-**environmentalne_faktory** (5 285 meraní)
-- Znečistenie ovzdušia (PM2.5, PM10, ambient/household air pollution)
-- Kvalita vzduchu
-
-### 5. Financovanie
-
-**financovanie_zdravotnictva** (276 meraní)
-- Výdavky na zdravotníctvo (OOP - out-of-pocket, GGHE-D - government, PVT-D - private, CHE - current health expenditure)
-
----
-
-## Vzťahy medzi tabuľkami
-
-```
-kategorie_chorob (1) ──→ (N) choroby (1) ──→ (N) vyskyt_chorob ←── (N) demograficke_skupiny
-                                                                            ↑
-zivotny_styl (1) ────────────────────→ (N) zivotny_styl_data ──────────────┤
-                                                                            │
-environmentalne_faktory ────────────────────────────────────────────────────┤
-```
-
----
-
-## Pripojenie na databázu
-
-### Cez pgAdmin4
-
-- **Host:** `localhost`
-- **Port:** `5433`
-- **Database:** `tassu_db`
-- **User:** `tassu_user`
-- **Password:** `tassu_password`
-
-### Cez psql v Docker kontajneri
+## Pripojenie do databázy
 
 ```bash
 docker exec -it tassu_postgres psql -U tassu_user -d tassu_db
 ```
 
----
+## Príklady dotazov
 
-## Docker príkazy
+### 1. Koľko úmrtí spôsobených alkoholom v roku 2023?
 
-### Základné operácie
-
-```bash
-# Spusti všetky služby
-docker-compose up -d
-
-# Sleduj logy
-docker-compose logs -f
-
-# Sleduj logy PostgreSQL
-docker-compose logs -f postgres
-
-# Sleduj logy Python importu
-docker-compose logs -f python-app
-
-# Zastav všetky kontajnery
-docker-compose down
-
-# Reštartuj služby
-docker-compose restart
+```sql
+SELECT 
+  di.cause_name, 
+  SUM(la.value) as deaths
+FROM lm_high_alcohol_use la
+JOIN disease_indicators di ON la.disease_indicator_id = di.indicator_id
+WHERE 
+  la.measure = 'Deaths' 
+  AND la.year = 2023
+GROUP BY di.cause_name
+ORDER BY deaths DESC
+LIMIT 20;
 ```
 
-### Vyčistenie a rebuild
+### 2. Časový priebeh diabetu
 
-```bash
-# Zastav a vymaž databázu
-docker-compose down -v
-
-# Kompletné vyčistenie (kontajnery, obrazy, volumes)
-docker-compose down -v --rmi all --remove-orphans
-
-# Rebuild Python obrazu bez cache
-docker-compose build --no-cache python-app
-
-# Reštart databázy a reimport dát
-docker-compose down -v && docker-compose up -d
+```sql
+SELECT year, measure, sex, age, SUM(value) as total
+FROM dm_diabetes_mellitus
+GROUP BY year, measure, sex, age
+ORDER BY year, measure;
 ```
 
-### Backup a restore
+### 3. Choroby spôsobené fajčením
 
-```bash
-# Backup databázy
-docker exec tassu_postgres pg_dump -U tassu_user tassu_db > backup_$(date +%Y%m%d).sql
-
-# Restore databázy
-cat backup_20241027.sql | docker exec -i tassu_postgres psql -U tassu_user -d tassu_db
+```sql
+SELECT di.cause_name, dg.group_name, SUM(s.value) as deaths
+FROM lm_smoking s
+JOIN disease_indicators di ON s.disease_indicator_id = di.indicator_id
+JOIN disease_groups dg ON di.group_id = dg.group_id
+WHERE s.measure = 'Deaths' AND s.year = 2023
+GROUP BY di.cause_name, dg.group_name
+ORDER BY deaths DESC;
 ```
 
----
+### 4. Zoznam tabuliek
 
-## Import skript
-
-Import skript (`import_data.py`) automaticky:
-- Načíta všetky WHO CSV súbory
-- Kategorizuje zdravotné indikátory do správnych tabuliek
-- Parsuje demografické informácie (vek, pohlavie)
-- Importuje dáta do databázy
-- Vytvára prepojenia medzi tabuľkami
-- Loguje progress a štatistiky
-
-**Kategorizácia dát:**
-- **Choroby:** Infekčné choroby, metabolické ochorenia, neuropsychiatrické poruchy, rakoviny, respiračné ochorenia, zdravie matiek a detí
-  - Každá choroba môže mať viacero typov meraní: mortality (úmrtnosť), incidence (výskyt), prevalence (rozšírenosť), cases (počet prípadov)
-- **Životný štýl:** Alkohol, fajčenie, vakcinácia (preventívne opatrenia), výživa (BMI, anémia, obezita)
-- **Environment:** Znečistenie ovzdušia, kvalita vzduchu
-- **Financovanie:** Výdavky na zdravotníctvo
-
----
-
-## Riešenie problémov
-
-### PostgreSQL sa nespustí
-
-```bash
-# Skontroluj logy
-docker-compose logs postgres
-
-# Reštartuj kontajner
-docker-compose restart postgres
+```sql
+SELECT tablename FROM pg_tables 
+WHERE tablename LIKE 'dm_%' OR tablename LIKE 'em_%' OR tablename LIKE 'lm_%'
+ORDER BY tablename;
 ```
 
-### Import zlyhá
+## Štatistiky
 
-```bash
-# Sleduj import logy
-docker-compose logs -f python-app
-
-# Ručne spusti import
-docker-compose run --rm python-app python import_data.py
+```
+Choroby:      126 tabuliek,  23,646 záznamov
+Prostredie:     8 tabuliek,   2,376 záznamov  
+Život. štýl:    9 tabuliek,   6,743 záznamov
+─────────────────────────────────────────────
+CELKOM:       143 tabuliek,  32,765 záznamov
 ```
 
-### Databáza neobsahuje dáta
+Vyfiltrovaných: 11,456 agregátov + 88 cirkulárnych závislostí
 
-```bash
-# Reštart databázy a reimport
-docker-compose down -v
-docker-compose up -d
-docker-compose logs -f python-app
-```
+## Dáta
 
----
-
-## WHO Dáta - zdroje
-
-Dáta pochádzajú z WHO Global Health Observatory (GHO):
-- [WHO Global Health Observatory](https://www.who.int/data/gho)
-- [GHO Data Repository](https://www.who.int/data/gho/data/indicators)
-
-CSV súbory pre Švajčiarsko (CHE) obsahujú celkovo **25 384 záznamov** z rokov 2000-2024:
-- health_indicators_che.csv: 17 011 záznamov
-- air_pollution_indicators_che.csv: 2 517 záznamov
-- environment_and_health_indicators_che.csv: 2 768 záznamov
-- global_information_system_on_alcohol_and_health_indicators_che.csv: 919 záznamov
-- health_financing_indicators_che.csv: 276 záznamov
-- nutrition_indicators_che.csv: 1 893 záznamov
-
----
-
-## Technológie
-
-- **Databáza:** PostgreSQL 15
-- **Import:** Python 3.11, pandas, SQLAlchemy
-- **Orchestrácia:** Docker, Docker Compose
-
----
-
-## Licencia
-
-MIT
-
-## Autor
-
-XomByik - [GitHub](https://github.com/XomByik/tassu)
+IHME Global Burden of Disease Study 2023 (Switzerland, 1990-2023)
