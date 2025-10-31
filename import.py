@@ -67,10 +67,18 @@ AGGREGATES = [
     'maternal and neonatal disorders', 'respiratory infections',
     'enteric infections', 'neglected tropical diseases',
     'hiv/aids and sexually transmitted infections',
+    'communicable, maternal, neonatal, and nutritional diseases',
+    'upper digestive system diseases',
 ]
 
 # Cirkulárne závislosti
-CIRCULAR_DEPENDENCIES = {'alcohol use disorders', 'drug use disorders', 'eating disorders'}
+CIRCULAR_DEPENDENCIES = {
+    'alcohol use disorders', 
+    'drug use disorders', 
+    'eating disorders',
+    'communicable, maternal, neonatal, and nutritional diseases',
+    'upper digestive system diseases',
+}
 
 # ============================================================
 # POMOCNÉ FUNKCIE

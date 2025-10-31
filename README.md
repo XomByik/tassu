@@ -14,9 +14,9 @@ Import prebehne automaticky (~30s).
 
 ## Štruktúra
 
-3 domény, 143 dynamicky vytvorených tabuliek:
+3 domény, 147 dynamicky vytvorených tabuliek:
 
-1. **CHOROBY (dm_*)** - 126 tabuliek  
+1. **CHOROBY (dm_*)** - 130 tabuliek  
    Konkrétne choroby: diabetes, tuberkulóza, rakovina
 
 2. **PROSTREDIE (em_*)** - 8 tabuliek  
@@ -81,14 +81,14 @@ ORDER BY tablename;
 ## Štatistiky
 
 ```
-Choroby:      126 tabuliek,  23,646 záznamov
-Prostredie:     8 tabuliek,   2,376 záznamov  
-Život. štýl:    9 tabuliek,   6,743 záznamov
+Choroby:      130 tabuliek,  24,136 záznamov
+Prostredie:     8 tabuliek,   2,024 záznamov  
+Život. štýl:    9 tabuliek,   6,457 záznamov
 ─────────────────────────────────────────────
-CELKOM:       143 tabuliek,  32,765 záznamov
+CELKOM:       147 tabuliek,  32,617 záznamov
 ```
 
-Vyfiltrovaných: 11,456 agregátov + 88 cirkulárnych závislostí
+Vyfiltrovaných: 11,516 agregátov + 220 cirkulárnych závislostí
 
 ## Dáta
 
