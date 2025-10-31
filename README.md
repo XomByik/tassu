@@ -1,6 +1,6 @@
-# GBD 2023 - Švajčiarsko
+# TASSU - Švajčiarsko
 
-Dynamická zdravotná databáza s automatickým vytváraním tabuliek.
+Zdravotná databáza s automatickým vytváraním tabuliek.
 
 ## Spustenie
 
