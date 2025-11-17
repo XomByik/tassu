@@ -14,21 +14,80 @@ services:
     networks:
       - tassu_network
 
-  python-app:
+  norway_db:
+    image: mysql:8.0
+    container_name: norway_mysql
+    environment:
+      MYSQL_DATABASE: health_norway_db_v3
+      MYSQL_ROOT_PASSWORD: norway_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - norway_data:/var/lib/mysql
+      - ./databazy_ine_krajiny/norway.sql:/docker-entrypoint-initdb.d/norway.sql
+    networks:
+      - tassu_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  germany_db:
+    image: mysql:8.0
+    container_name: germany_mysql
+    environment:
+      MYSQL_DATABASE: deu_health
+      MYSQL_ROOT_PASSWORD: germany_password
+    ports:
+      - "3308:3306"
+    volumes:
+      - germany_data:/var/lib/mysql
+      - ./databazy_ine_krajiny/germany.sql:/docker-entrypoint-initdb.d/germany.sql
+    networks:
+      - tassu_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  usa_db:
+    image: mysql:8.0
+    container_name: usa_mysql
+    environment:
+      MYSQL_DATABASE: usa
+      MYSQL_ROOT_PASSWORD: usa_password
+    ports:
+      - "3309:3306"
+    volumes:
+      - usa_data:/var/lib/mysql
+      - ./databazy_ine_krajiny/usa.sql:/docker-entrypoint-initdb.d/usa.sql
+    networks:
+      - tassu_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  etl:
     build: .
-    container_name: tassu_python
-    command: sh -c "sleep 10 && python import.py"
+    container_name: tassu_etl
+    command: sh -c "chmod +x /app/run_etl.sh && /app/run_etl.sh"
     depends_on:
       - postgres
+      - norway_db
+      - germany_db
+      - usa_db
     environment:
-      DB_HOST: postgres
+      PGPASSWORD: tassu_password
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: tassu_db
+      PG_USER: tassu_user
+      PG_PASSWORD: tassu_password
     volumes:
+      - ./extract_risk_disease.py:/app/extract_risk_disease.py
       - ./data_csv:/app/data_csv
+      - ./databazy_ine_krajiny:/app/databazy_ine_krajiny
+      - ./run_etl.sh:/app/run_etl.sh
     networks:
       - tassu_network
 
 volumes:
   postgres_data:
+  norway_data:
+  germany_data:
+  usa_data:
 
 networks:
   tassu_network:

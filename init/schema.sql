@@ -1,125 +1,130 @@
--- ============================================================
--- GBD 2023 SWITZERLAND - ROZMEROVÁ DATABÁZA
--- 3 Domény: CHOROBY, PROSTREDIE, ŽIVOTNÝ ŠTÝL
--- Dynamické vytvorenie faktových tabuliek cez Python
--- ============================================================
+-- Star Schema pre 4 RIZIKO→CHOROBA páry
+-- Krajiny: Švajčiarsko (CHE), Nemecko (DEU), Švédsko (SWE), USA (USA)
+-- Roky: 2013-2023
+-- Páry: Smoking→Lung Cancer, High BMI→CVD, Air Pollution→Respiratory, Alcohol→Cirrhosis
 
 -- ============================================================
--- DOMÉNA 1: CHOROBY
+-- DIMENSION TABLES
 -- ============================================================
 
-CREATE TABLE disease_groups (
-    group_id SERIAL PRIMARY KEY,
-    group_code VARCHAR(50) UNIQUE NOT NULL,
-    group_name VARCHAR(100) NOT NULL
+-- Dimension: Krajiny
+DROP TABLE IF EXISTS dim_country CASCADE;
+CREATE TABLE dim_country (
+    country_id SERIAL PRIMARY KEY,
+    country_code VARCHAR(3) UNIQUE NOT NULL,
+    country_name VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE disease_indicators (
-    indicator_id SERIAL PRIMARY KEY,
-    cause_id INT UNIQUE NOT NULL,
-    cause_name VARCHAR(255) NOT NULL,
-    group_id INT REFERENCES disease_groups(group_id),
-    table_name VARCHAR(100) UNIQUE NOT NULL
+INSERT INTO dim_country (country_code, country_name) VALUES
+('CHE', 'Switzerland'),
+('DEU', 'Germany'),
+('SWE', 'Sweden'),
+('USA', 'United States');
+
+-- Dimension: Pohlavie
+DROP TABLE IF EXISTS dim_sex CASCADE;
+CREATE TABLE dim_sex (
+    sex_id SERIAL PRIMARY KEY,
+    sex_code VARCHAR(10) UNIQUE NOT NULL,
+    sex_name VARCHAR(50) NOT NULL
 );
 
--- ============================================================
--- DOMÉNA 2: PROSTREDIE
--- ============================================================
+INSERT INTO dim_sex (sex_code, sex_name) VALUES
+('M', 'Male'),
+('F', 'Female'),
+('B', 'Both');
 
-CREATE TABLE environment_groups (
-    group_id SERIAL PRIMARY KEY,
-    group_code VARCHAR(50) UNIQUE NOT NULL,
-    group_name VARCHAR(100) NOT NULL
+-- Dimension: Vekové skupiny (WHO štandard)
+DROP TABLE IF EXISTS dim_age_group CASCADE;
+CREATE TABLE dim_age_group (
+    age_group_id SERIAL PRIMARY KEY,
+    age_group_code VARCHAR(20) UNIQUE NOT NULL,
+    age_group_name VARCHAR(100) NOT NULL,
+    age_from INTEGER,
+    age_to INTEGER
 );
 
-CREATE TABLE environment_indicators (
-    indicator_id SERIAL PRIMARY KEY,
-    rei_id INT UNIQUE NOT NULL,
-    rei_name VARCHAR(255) NOT NULL,
-    group_id INT REFERENCES environment_groups(group_id),
-    table_name VARCHAR(100) NOT NULL
+INSERT INTO dim_age_group (age_group_code, age_group_name, age_from, age_to) VALUES
+('0-14', '0-14 years', 0, 14),
+('15-49', '15-49 years', 15, 49),
+('50-69', '50-69 years', 50, 69),
+('70+', '70+ years', 70, NULL),
+('ALL', 'All ages', 0, NULL);
+
+-- Dimension: Roky
+DROP TABLE IF EXISTS dim_year CASCADE;
+CREATE TABLE dim_year (
+    year_id SERIAL PRIMARY KEY,
+    year INTEGER UNIQUE NOT NULL
 );
 
+INSERT INTO dim_year (year) VALUES
+(2013), (2014), (2015), (2016), (2017), (2018), (2019), (2020), (2021), (2022), (2023);
+
 -- ============================================================
--- DOMÉNA 3: ŽIVOTNÝ ŠTÝL
+-- FACT TABLES - RISK→DISEASE RELATIONSHIPS
 -- ============================================================
 
-CREATE TABLE lifestyle_groups (
-    group_id SERIAL PRIMARY KEY,
-    group_code VARCHAR(50) UNIQUE NOT NULL,
-    group_name VARCHAR(100) NOT NULL
+-- FACT 1: Smoking → Lung Cancer
+DROP TABLE IF EXISTS fact_smoking_lung_cancer CASCADE;
+CREATE TABLE fact_smoking_lung_cancer (
+    fact_id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES dim_country(country_id),
+    sex_id INTEGER NOT NULL REFERENCES dim_sex(sex_id),
+    age_group_id INTEGER NOT NULL REFERENCES dim_age_group(age_group_id),
+    year_id INTEGER NOT NULL REFERENCES dim_year(year_id),
+    lung_cancer_deaths NUMERIC(15, 2),      -- úmrtia na rakovinu pľúc
+    attributable_deaths NUMERIC(15, 2),     -- úmrtia pripisateľné fajčeniu
+    UNIQUE(country_id, sex_id, age_group_id, year_id)
 );
 
-CREATE TABLE lifestyle_indicators (
-    indicator_id SERIAL PRIMARY KEY,
-    rei_id INT UNIQUE NOT NULL,
-    rei_name VARCHAR(255) NOT NULL,
-    group_id INT REFERENCES lifestyle_groups(group_id),
-    table_name VARCHAR(100) NOT NULL
+CREATE INDEX idx_smoking_lc_country ON fact_smoking_lung_cancer(country_id);
+CREATE INDEX idx_smoking_lc_year ON fact_smoking_lung_cancer(year_id);
+
+-- FACT 2: High BMI → Cardiovascular Disease
+DROP TABLE IF EXISTS fact_bmi_cardiovascular CASCADE;
+CREATE TABLE fact_bmi_cardiovascular (
+    fact_id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES dim_country(country_id),
+    sex_id INTEGER NOT NULL REFERENCES dim_sex(sex_id),
+    age_group_id INTEGER NOT NULL REFERENCES dim_age_group(age_group_id),
+    year_id INTEGER NOT NULL REFERENCES dim_year(year_id),
+    cvd_deaths NUMERIC(15, 2),              -- úmrtia na kardiovaskulárne choroby
+    attributable_deaths NUMERIC(15, 2),     -- úmrtia pripisateľné vysokému BMI
+    UNIQUE(country_id, sex_id, age_group_id, year_id)
 );
 
--- ============================================================
--- STORED PROCEDURES
--- ============================================================
+CREATE INDEX idx_bmi_cvd_country ON fact_bmi_cardiovascular(country_id);
+CREATE INDEX idx_bmi_cvd_year ON fact_bmi_cardiovascular(year_id);
 
--- Dynamické vytvorenie disease tabuľky
-CREATE OR REPLACE FUNCTION create_disease_table(p_table_name VARCHAR)
-RETURNS VOID AS $$
-BEGIN
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I (
-            country VARCHAR(3) DEFAULT ''CHE'',
-            sex VARCHAR(20) NOT NULL,
-            age VARCHAR(50) NOT NULL,
-            year INT NOT NULL,
-            indicator_id INT NOT NULL,
-            measure VARCHAR(20) NOT NULL,
-            value INT NOT NULL,
-            PRIMARY KEY (country, sex, age, year, indicator_id, measure)
-        )', p_table_name);
-    
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%I_year ON %I(year)', p_table_name, p_table_name);
-END;
-$$ LANGUAGE plpgsql;
+-- FACT 3: Air Pollution → Respiratory Disease
+DROP TABLE IF EXISTS fact_pollution_respiratory CASCADE;
+CREATE TABLE fact_pollution_respiratory (
+    fact_id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES dim_country(country_id),
+    sex_id INTEGER NOT NULL REFERENCES dim_sex(sex_id),
+    age_group_id INTEGER NOT NULL REFERENCES dim_age_group(age_group_id),
+    year_id INTEGER NOT NULL REFERENCES dim_year(year_id),
+    respiratory_deaths NUMERIC(15, 2),      -- úmrtia na respiračné choroby
+    attributable_deaths NUMERIC(15, 2),     -- úmrtia pripisateľné znečisteniu
+    UNIQUE(country_id, sex_id, age_group_id, year_id)
+);
 
--- Dynamické vytvorenie environment tabuľky
-CREATE OR REPLACE FUNCTION create_environment_table(p_table_name VARCHAR)
-RETURNS VOID AS $$
-BEGIN
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I (
-            country VARCHAR(3) DEFAULT ''CHE'',
-            sex VARCHAR(20) NOT NULL,
-            age VARCHAR(50) NOT NULL,
-            year INT NOT NULL,
-            disease_indicator_id INT NOT NULL,
-            env_indicator_id INT NOT NULL,
-            measure VARCHAR(20) NOT NULL,
-            value INT NOT NULL,
-            PRIMARY KEY (country, sex, age, year, disease_indicator_id, env_indicator_id, measure)
-        )', p_table_name);
-    
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%I_year ON %I(year)', p_table_name, p_table_name);
-END;
-$$ LANGUAGE plpgsql;
+CREATE INDEX idx_pollution_resp_country ON fact_pollution_respiratory(country_id);
+CREATE INDEX idx_pollution_resp_year ON fact_pollution_respiratory(year_id);
 
--- Dynamické vytvorenie lifestyle tabuľky
-CREATE OR REPLACE FUNCTION create_lifestyle_table(p_table_name VARCHAR)
-RETURNS VOID AS $$
-BEGIN
-    EXECUTE format('
-        CREATE TABLE IF NOT EXISTS %I (
-            country VARCHAR(3) DEFAULT ''CHE'',
-            sex VARCHAR(20) NOT NULL,
-            age VARCHAR(50) NOT NULL,
-            year INT NOT NULL,
-            disease_indicator_id INT NOT NULL,
-            lifestyle_indicator_id INT NOT NULL,
-            measure VARCHAR(20) NOT NULL,
-            value INT NOT NULL,
-            PRIMARY KEY (country, sex, age, year, disease_indicator_id, lifestyle_indicator_id, measure)
-        )', p_table_name);
-    
-    EXECUTE format('CREATE INDEX IF NOT EXISTS idx_%I_year ON %I(year)', p_table_name, p_table_name);
-END;
-$$ LANGUAGE plpgsql;
+-- FACT 4: High Alcohol → Liver Cirrhosis
+DROP TABLE IF EXISTS fact_alcohol_cirrhosis CASCADE;
+CREATE TABLE fact_alcohol_cirrhosis (
+    fact_id SERIAL PRIMARY KEY,
+    country_id INTEGER NOT NULL REFERENCES dim_country(country_id),
+    sex_id INTEGER NOT NULL REFERENCES dim_sex(sex_id),
+    age_group_id INTEGER NOT NULL REFERENCES dim_age_group(age_group_id),
+    year_id INTEGER NOT NULL REFERENCES dim_year(year_id),
+    cirrhosis_deaths NUMERIC(15, 2),        -- úmrtia na cirhózu pečene
+    attributable_deaths NUMERIC(15, 2),     -- úmrtia pripisateľné alkoholu
+    UNIQUE(country_id, sex_id, age_group_id, year_id)
+);
+
+CREATE INDEX idx_alcohol_cirr_country ON fact_alcohol_cirrhosis(country_id);
+CREATE INDEX idx_alcohol_cirr_year ON fact_alcohol_cirrhosis(year_id);
