@@ -1,10 +1,10 @@
-# Risk→Disease Health Data Warehouse
+# TASSU
 
-Analýza kauzálnych vzťahov medzi rizikovými faktormi a chorobami vo 4 krajinách (2013-2023).
+Analýza vzťahov medzi rizikovými faktormi a chorobami vo 4 krajinách (2013-2023).
 
 ## 📊 Prehľad
 
-Projekt obsahuje **PostgreSQL data warehouse** s **star schémou** pre analýzu 4 riziko→choroba párov:
+Projekt obsahuje **PostgreSQL data warehouse** so **star schémou** pre analýzu 4 merateľných faktov (úmrtia na choroby pripisované rizikovým faktorom):
 
 1. **Smoking → Lung Cancer** (Fajčenie → Rakovina pľúc)
 2. **High BMI → Cardiovascular Disease** (Obezita → Srdcové choroby)
@@ -20,6 +20,32 @@ Projekt obsahuje **PostgreSQL data warehouse** s **star schémou** pre analýzu 
 **Celkom: 656 záznamov** (164 na každú fact tabuľku)
 
 ---
+
+## 📁 Štruktúra Projektu
+
+```
+tassu/
+├── docker-compose.yml           # Orchestrácia 5 kontajnerov (4 DB + ETL)
+├── Dockerfile                   # Python ETL kontajner
+├── requirements.txt             # Python závislosti
+├── extract_risk_disease.py      # Hlavný ETL skript
+├── run_etl.sh                   # Bash skript (ETL + zobrazenie výsledkov)
+├── verify_2013_2023.sql        # Verifikačný query
+├── README.md                    # Táto dokumentácia
+├── VALIDATION_REPORT.md         # Validácia proti CDC/WHO/IHME
+├── init/
+│   └── schema.sql              # Star schema (dimension + fact tables)
+├── databazy_ine_krajiny/
+│   ├── usa.sql                 # USA source data
+│   ├── germany.sql             # Nemecko source data
+│   └── sweden.sql              # Švédsko source data (Norway → Sweden)
+└── data_csv/
+    ├── IHME-GBD_2023_DATA-94d9786b-1.csv    # Švajčiarsko smoking→LC
+    └── IHME-GBD_2023_DATA-cea2d4bb-1.csv    # Švajčiarsko ostatné páry
+```
+
+---
+```
 
 ## 🚀 Rýchly Štart
 
@@ -215,8 +241,7 @@ Stĺpce:
 **Tabuľka:** `fact_disease_risk`
 - **Zdroje:** IHME Global Burden of Disease (GBD) Study, CDC
 - **Obdobie:** 2014-2023
-- **Metodológia:** Priame risk→disease dáta
-- **Výhoda:** Kvalitné dáta - obsahuje priame spojenie medzi rizikom a chorobou
+- **Výpočet celkového počtu úmrtí:** Dáta obsahujú priame spojenie medzi rizikom a chorobou
 - **Kľúčové polia:**
   - `risk_id`: 99=Smoking, 108=High BMI, 85=Air pollution, 102=Alcohol
   - `cause_id`: 426=Lung cancer, 493=IHD, 498=Stroke, 509=COPD, 521=Cirrhosis
@@ -243,7 +268,7 @@ WHERE risk_id = 99 AND cause_id = 426 AND measure_id = 1 AND metric_id = 1
 
 **Zdroje:** IHME Global Burden of Disease (GBD) Study, WHO
 **Obdobie:** 2013-2020
-**Metodológia:** SDR (Standardized Death Rate per 100k) × populácia = absolútne úmrtia
+**Výpočet celkového počtu úmrtí:** SDR (Standardized Death Rate per 100k) × populácia = absolútne úmrtia
 **Poznámka:** SDR zabezpečuje porovnateľnosť naprieč vekom a populáciami
 
 **Príklad výpočtu:**
@@ -283,8 +308,7 @@ WHERE risk_id = 99 AND cause_id = 426 AND measure_id = 1 AND metric_id = 1
 
 **Zdroj:** IHME Global Burden of Disease Study (GDB), WHO
 **Obdobie:** 2013-2023
-**Metodológia:** Comparative Risk Assessment - priame attributable deaths
-**Výhoda:** Najautoritatívnejší globálny zdroj pre risk-disease kauzalitu
+**Výpočet celkového počtu úmrtí:** Dáta obsahujú priame spojenie medzi rizikom a chorobou
 
 **Filter v ETL:**
 ```python
@@ -299,11 +323,9 @@ df = df[
 
 ## 📊 Príklad Dát (rok 2017)
 
-**Poznámka:** Zobrazujú sa **attributable deaths** kde dostupné (USA, Švajčiarsko, Švédsko), inak **total disease deaths** (Nemecko).
-
 | Krajina       | Smoking→LC | BMI→CVD  | Pollution→Resp | Alcohol→Cirr | Typ dát |
 |---------------|------------|----------|----------------|--------------|---------|
-| Germany       | 27,528     | 56,380   | 17,746         | 9,592        | Total deaths |
+| Germany       | 27,528     | 56,380   | 17,746         | 9,592        | Attributable (AF applied) |
 | Sweden        | 8,513      | 5,311    | 1,922          | 539          | Attributable (AF applied) |
 | Switzerland   | 2,485      | 2,244    | 190            | 398          | Attributable (IHME) |
 | United States | 103,272    | 118,210  | 23,303         | 23,802       | Attributable (IHME) |
@@ -325,33 +347,16 @@ Každá fact tabuľka obsahuje tieto metriky:
 - `fact_pollution_respiratory`: respiratory_deaths (total), attributable_deaths (PM2.5-caused)
 - `fact_alcohol_cirrhosis`: cirrhosis_deaths (total), attributable_deaths (alcohol-caused)
 
-### NULL vs 0
-
-**NULL** = dáta nie sú dostupné  
-**0** = namerané hodnota nula
-
-**Príklady:**
-- **Nemecko**: `smoking_prevalence` = NULL (nemáme tieto dáta)
-- **Nemecko**: `lung_cancer_deaths` = 29,397 (total LC deaths z SDR)
-- **Nemecko**: `attributable_deaths` = 23,518 (vypočítané: 29,397 × 0.80 AF)
-- **Švédsko**: `lung_cancer_deaths` = 10,940 (total LC deaths z registra)
-- **Švédsko**: `attributable_deaths` = 8,205 (vypočítané: 10,940 × 0.75 AF)
-- **USA/Švajčiarsko**: Obe hodnoty priamo z IHME databázy
-
 ### Dostupnosť Attributable Deaths
 
 | Krajina | Smoking→LC | BMI→CVD | Pollution→Resp | Alcohol→Cirr | Zdroj |
 |---------|-----------|---------|----------------|--------------|-------|
 | 🇺🇸 USA | ✅ Priamo | ✅ Priamo | ✅ Priamo | ✅ Priamo | IHME GBD (fact_disease_risk) |
 | 🇨🇭 Švajčiarsko | ✅ Priamo | ✅ Priamo | ✅ Priamo | ✅ Priamo | IHME GBD CSV (rei_id) |
-| 🇸🇪 Švédsko | ✅ AF 75% | ✅ AF 15% | ✅ AF 20% | ✅ AF 55% | Total × AF (epidem. štúdie) |
-| 🇩🇪 Nemecko | ✅ AF 80% | ✅ AF 15% | ✅ AF 20% | ✅ AF 48% | Total × AF (RKI, GBD 2019) |
+| 🇸🇪 Švédsko | ✅ AF 75% | ✅ AF 15% | ✅ AF 20% | ✅ AF 55% | Total × AF (AF z epidem. štúdie) |
+| 🇩🇪 Nemecko | ✅ AF 80% | ✅ AF 15% | ✅ AF 20% | ✅ AF 48% | Total × AF (AF z RKI, GBD 2019) |
 
 **AF (Attributable Fraction)** = Podiel chorôb pripisateľný rizikovému faktoru podľa epidemiologických štúdií.
-
-**Poznámka:** Všetky krajiny teraz majú údaje o attributable deaths:
-- USA/Švajčiarsko: priamo z IHME databázy (risk→cause attribution)
-- Švédsko/Nemecko: vypočítané aplikovaním AF na total disease deaths
 
 ---
 
@@ -371,8 +376,8 @@ WHERE y.year = 2017 AND sex_code = 'F';
 |------|----------|-----------------|------|
 | DEU  | 9,201    | 7,361           | AF = 80% (RKI) |
 | SWE  | 3,742    | 2,807           | AF = 75% |
-| CHE  | 892      | 679             | IHME priamo attributable |
-| USA  | 44,056   | 31,124          | IHME priamo attributable |
+| CHE  | 892      | 679             | IHME priamo |
+| USA  | 44,056   | 31,124          | IHME priamo |
 
 **Total LC deaths** = Všetky úmrtia na rakovinu pľúc (všetky príčiny)  
 **Attributable LC deaths** = Úmrtia na rakovinu pľúc spôsobené fajčením
@@ -499,34 +504,6 @@ ORDER BY c.country_name;
 - **psycopg2** - PostgreSQL connector
 - **mysql-connector-python** - MySQL connector
 - **Docker & Docker Compose** - Kompletná kontajnerizácia (žiadna lokálna inštalácia!)
-
----
-
-## 📁 Štruktúra Projektu
-
-```
-tassu/
-├── docker-compose.yml           # Orchestrácia 5 kontajnerov (4 DB + ETL)
-├── Dockerfile                   # Python ETL kontajner
-├── requirements.txt             # Python závislosti
-├── extract_risk_disease.py      # Hlavný ETL skript
-├── run_etl.sh                   # Bash skript (ETL + zobrazenie výsledkov)
-├── verify_2013_2023.sql        # Verifikačný query
-├── README.md                    # Táto dokumentácia
-├── VALIDATION_REPORT.md         # Validácia proti CDC/WHO/IHME
-├── init/
-│   └── schema.sql              # Star schema (dimension + fact tables)
-├── databazy_ine_krajiny/
-│   ├── usa.sql                 # USA source data
-│   ├── germany.sql             # Nemecko source data
-│   └── sweden.sql              # Švédsko source data (Norway → Sweden)
-└── data_csv/
-    ├── IHME-GBD_2023_DATA-94d9786b-1.csv    # Švajčiarsko smoking→LC
-    └── IHME-GBD_2023_DATA-cea2d4bb-1.csv    # Švajčiarsko ostatné páry
-```
-
----
-```
 
 ---
 
