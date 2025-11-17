@@ -32,7 +32,6 @@ tassu/
 ├── run_etl.sh                   # Bash skript (ETL + zobrazenie výsledkov)
 ├── verify_2013_2023.sql        # Verifikačný query
 ├── README.md                    # Táto dokumentácia
-├── VALIDATION_REPORT.md         # Validácia proti CDC/WHO/IHME
 ├── init/
 │   └── schema.sql              # Star schema (dimension + fact tables)
 ├── databazy_ine_krajiny/
@@ -515,8 +514,6 @@ Všetky dáta boli overené proti oficiálnym zdrojom:
 - **RKI** (Robert Koch Institut - Nemecko)
 - **Socialstyrelsen** (Švédsko)
 - **BAG/FOPH** (Swiss Federal Office of Public Health)
-
-Detaily: [VALIDATION_REPORT.md](VALIDATION_REPORT.md)
 
 ### Kľúčové overenia (rok 2017):
 ✅ **USA Smoking→LC**: 103k (CDC: ~100-110k attributable)  
