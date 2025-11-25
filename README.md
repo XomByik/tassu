@@ -475,22 +475,6 @@ WHERE y.year = 2017
 GROUP BY c.country_name, y.year
 ORDER BY c.country_name;
 ```
-
-**Výstup:**
-```
- country_name  | total_lc_deaths | attributable_lc_deaths | attributable_%
----------------+-----------------+------------------------+---------------
- Germany       |      27,528     |         NULL           |     NULL
- Sweden        |      10,940     |         8,513          |     77.8%
- Switzerland   |       2,485     |         2,485          |    100.0%
- United States |     103,272     |       103,272          |    100.0%
-```
-
-**Interpretácia:**
-- **Nemecko**: Máme len total deaths, attributable nie sú dostupné
-- **Švédsko**: Total = 10,940 (všetky LC), Attributable = 8,513 (77.8% AF aplikované)
-- **USA/Švajčiarsko**: IHME priamo dáva attributable, total deaths nie sú v databáze
-
 ---
 
 ## 🛠️ Technológie
